@@ -7,6 +7,7 @@
 ########################################
 
 import random
+import numpy as np
 
 class HiddenMarkovModel:
     '''
@@ -381,7 +382,7 @@ class HiddenMarkovModel:
                 for xt in range(self.D):
                     self.O[curr][xt] = O_num[curr][xt] / O_den[curr]
 
-    def generate_emission(self, M):
+    def generate_emission(self, length, seed=None):
         '''
         Generates an emission of length M, assuming that the starting state
         is chosen uniformly at random. 
@@ -396,10 +397,20 @@ class HiddenMarkovModel:
         '''
 
         emission = []
-        state = random.choice(range(self.L))
         states = []
-
-        for t in range(M):
+        
+        # If no seed, initial state is random
+        if seed is None:
+            state = random.choice(range(self.L))
+        # If not, we search over all states and pick the one that was most likely to have output the seed
+        # We use that as the previous state, then transition to the next state using the A matrix
+        else:
+            # Max of index that comes from range(self.L) where the max is determined using the O matrix transition from i-state -> seed
+            state = max(range(self.L), key=lambda i: self.O[i][seed])
+            # Pick the next state from range(self.L) where probs comes from A[state][next_state]
+            state = np.random.choice(self.L, p=self.A[state])
+            
+        for t in range(length):
             # Append state.
             states.append(state)
 
@@ -531,7 +542,7 @@ def supervised_HMM(X, Y):
     return HMM
 
 
-def unsupervised_HMM(X, n_states, N_iters):
+def unsupervised_HMM(X, n_states, n_words, N_iters):
     '''
     Helper function to train an unsupervised HMM. The function determines the
     number of unique observations in the given data, initializes
@@ -555,7 +566,7 @@ def unsupervised_HMM(X, n_states, N_iters):
     
     # Compute L and D.
     L = n_states
-    D = len(observations)
+    D = n_words #len(observations)
 
     # Randomly initialize and normalize matrices A and O.
     A = [[random.random() for i in range(L)] for j in range(L)]
